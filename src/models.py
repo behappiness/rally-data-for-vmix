@@ -14,6 +14,45 @@ class APIEndpoint(str, Enum):
     STAGE_RESULTS = "3"  # Gyorsasági szakasz részletes eredmények - Detailed stage results
     CURRENT_STAGE = "4"  # Gyorsaságin lévő autók - Cars currently on stage
     ENHANCED_CURRENT = "104"  # Enhanced version of current stage with GPS data
+    
+    @property
+    def csv_filename(self) -> str:
+        """Get CSV filename for this endpoint."""
+        filenames = {
+            "8": "entry_list.csv",
+            "9": "start_list.csv", 
+            "10": "route_sheet.csv",
+            "3": "stage_results.csv",
+            "4": "current_stage.csv",
+            "104": "enhanced_current.csv"
+        }
+        return filenames.get(self.value, f"endpoint_{self.value}.csv")
+    
+    @property
+    def excel_sheet(self) -> str:
+        """Get Excel sheet name for this endpoint."""
+        sheet_names = {
+            "8": "Entry_List",
+            "9": "Start_List",
+            "10": "Route_Sheet", 
+            "3": "Stage_Results",
+            "4": "Current_Stage",
+            "104": "Enhanced_Current"
+        }
+        return sheet_names.get(self.value, f"Endpoint_{self.value}")
+    
+    def get_csv_filename_with_stage(self, stage_id: Optional[str] = None) -> str:
+        """Get CSV filename with stage ID if applicable."""
+        if stage_id and self.value in ["3", "4", "104"]:
+            base_name = self.csv_filename.replace(".csv", "")
+            return f"{base_name}_{stage_id}.csv"
+        return self.csv_filename
+    
+    def get_excel_sheet_with_stage(self, stage_id: Optional[str] = None) -> str:
+        """Get Excel sheet name with stage ID if applicable."""
+        if stage_id and self.value in ["3", "4", "104"]:
+            return f"{self.excel_sheet}_{stage_id}"
+        return self.excel_sheet
 
 
 class RallyClass(str, Enum):

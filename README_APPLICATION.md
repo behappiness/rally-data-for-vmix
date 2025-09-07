@@ -6,7 +6,8 @@ A Python 3.12 async application for scraping rally data from HauserResults API a
 
 - **Async API Client**: Performant HTTP client for HauserResults API
 - **HTTP Trigger API**: On-demand data fetching via HTTP requests
-- **CSV Export**: Configurable CSV export with automatic callbacks
+- **CSV & Excel Export**: Configurable CSV export and Excel workbook with multiple tabs
+- **xlwings Integration**: Automatic Excel export with each dataset in separate tabs
 
 ## Quick Start
 
@@ -43,6 +44,9 @@ HTTP_SERVER_HOST=localhost
 HTTP_SERVER_PORT=8000
 CSV_OUTPUT_DIR=./output
 CSV_DELIMITER=,
+CSV_EXPORT_ENABLED=true
+EXCEL_EXPORT_ENABLED=true
+EXCEL_FILENAME=rally_data.xlsx
 LOG_LEVEL=INFO
 ```
 
@@ -59,12 +63,17 @@ curl -X POST http://localhost:8000/trigger \
 ```
 
 ### Output Files
+
+**CSV Files:**
 - `entry_list.csv` - Entry list data
 - `start_list.csv` - Start list data  
 - `route_sheet.csv` - Route sheet data
 - `stage_results_{stage}.csv` - Stage results
 - `current_stage.csv` - Current stage info
 - `enhanced_current_{stage}.csv` - Enhanced stage data with GPS
+
+**Excel File:**
+- `rally_data.xlsx` - All datasets in separate tabs (Entry_List, Start_List, Route_Sheet, Stage_Results_{stage}, etc.)
 
 ## API Endpoints
 
@@ -91,5 +100,14 @@ Logs show timestamp with milliseconds, level, filename, and message:
 ## Requirements
 
 - Python 3.12+
+- Microsoft Excel (for xlwings functionality)
 - Dependencies listed in `requirements.txt`
 - Valid HauserResults API credentials
+
+## Excel Export Features
+
+- **Automatic Excel Export**: When `EXCEL_EXPORT_ENABLED=true`, all CSV data is also exported to a single Excel file
+- **Multiple Tabs**: Each data type gets its own worksheet tab (Entry_List, Start_List, Route_Sheet, etc.)
+- **Auto-formatting**: Columns are auto-fitted and headers are included
+- **Configurable Filename**: Set via `EXCEL_FILENAME` environment variable
+- **xlwings Integration**: Uses xlwings for robust Excel file creation and manipulation

@@ -22,7 +22,6 @@ class HauserResultsAPIClient:
         """Initialize the API client."""
         self.base_url = settings.api_base_url
         self.error_code = settings.api_error_code
-        self.event_id = settings.api_event_id
         self.user_agent = settings.user_agent
         self.timeout = settings.request_timeout_seconds
         self.session: Optional[aiohttp.ClientSession] = None
@@ -67,8 +66,6 @@ class HauserResultsAPIClient:
             'error': self.error_code,
             'a': endpoint.value,
             'ert': 'ALL',
-            'go': '*',
-            'ev': self.event_id,
             'noform': '1',
             'csv': '1'  # Request CSV format
         }

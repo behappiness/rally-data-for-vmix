@@ -15,15 +15,13 @@ class Settings:
         # API Configuration - Required values, no defaults for sensitive data
         self.api_base_url = os.getenv("API_BASE_URL")
         self.api_error_code = os.getenv("API_ERROR_CODE")  # Sensitive - no default
-        self.api_event_id = os.getenv("API_EVENT_ID")
         self.user_agent = os.getenv("USER_AGENT")
         
         # Validate required API settings
-        if not all([self.api_base_url, self.api_error_code, self.api_event_id, self.user_agent]):
+        if not all([self.api_base_url, self.api_error_code, self.user_agent]):
             missing = [k for k, v in {
                 "API_BASE_URL": self.api_base_url,
                 "API_ERROR_CODE": self.api_error_code,
-                "API_EVENT_ID": self.api_event_id,
                 "USER_AGENT": self.user_agent
             }.items() if not v]
             raise ValueError(f"Missing required environment variables: {', '.join(missing)}")
@@ -34,6 +32,11 @@ class Settings:
         # Data Storage
         self.csv_output_dir = os.getenv("CSV_OUTPUT_DIR", "./output")
         self.csv_delimiter = os.getenv("CSV_DELIMITER", ",")
+        
+        # Export Configuration
+        self.csv_export_enabled = os.getenv("CSV_EXPORT_ENABLED", "true").lower() == "true"
+        self.excel_export_enabled = os.getenv("EXCEL_EXPORT_ENABLED", "true").lower() == "true"
+        self.excel_filename = os.getenv("EXCEL_FILENAME", "rally_data.xlsx")
         
         # HTTP Server Configuration
         self.http_server_host = os.getenv("HTTP_SERVER_HOST", "localhost")

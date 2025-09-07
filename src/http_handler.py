@@ -10,7 +10,6 @@ from pydantic import BaseModel
 from .api_client import HauserResultsAPIClient
 from .data_store import RallyDataProcessor
 from .models import APIEndpoint, RallyClass
-from .csv_exporter import CSVExporter
 
 
 logger = logging.getLogger(__name__)
@@ -29,13 +28,11 @@ class RallyHTTPHandler:
     def __init__(
         self,
         api_client: HauserResultsAPIClient,
-        data_processor: RallyDataProcessor,
-        csv_exporter: CSVExporter
+        data_processor: RallyDataProcessor
     ):
         """Initialize the HTTP handler."""
         self.api_client = api_client
         self.data_processor = data_processor
-        self.csv_exporter = csv_exporter
         self.app = FastAPI(
             title="Rally Data API",
             description="Simple API for rerunning rally data requests",

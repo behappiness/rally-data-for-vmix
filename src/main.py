@@ -5,13 +5,14 @@ import logging
 import signal
 import sys
 from pathlib import Path
+from typing import Dict, List, Any
 
 import uvicorn
 
 from .api_client import HauserResultsAPIClient
 from .data_store import RallyDataProcessor
 from .http_handler import RallyHTTPHandler
-from .csv_exporter import CSVExporter
+from . import csv_exporter
 from .config import settings
 from .models import APIEndpoint
 
@@ -64,7 +65,6 @@ class RallyDataApplication:
         self.api_client: HauserResultsAPIClient = None
         self.data_processor: RallyDataProcessor = None
         self.http_handler: RallyHTTPHandler = None
-        self.csv_exporter: CSVExporter = None
         self.running = False
         
     async def initialize(self):
@@ -74,11 +74,9 @@ class RallyDataApplication:
         # Initialize components
         self.api_client = HauserResultsAPIClient()
         self.data_processor = RallyDataProcessor()
-        self.csv_exporter = CSVExporter()
         self.http_handler = RallyHTTPHandler(
             self.api_client,
-            self.data_processor,
-            self.csv_exporter
+            self.data_processor
         )
         
         # Set up automatic CSV export callbacks
@@ -90,38 +88,34 @@ class RallyDataApplication:
         logger.info("Application initialized successfully")
         
     def _setup_export_callbacks(self):
-        """Set up automatic CSV export callbacks for all data types."""
-        # Create simple callbacks for each endpoint
-        async def entry_list_callback(data, stage_id=None):
-            await self.csv_exporter.export_to_csv(data, "entry_list.csv")
-            
-        async def start_list_callback(data, stage_id=None):
-            await self.csv_exporter.export_to_csv(data, "start_list.csv")
-            
-        async def route_sheet_callback(data, stage_id=None):
-            await self.csv_exporter.export_to_csv(data, "route_sheet.csv")
-            
-        async def stage_results_callback(data, stage_id=None):
-            filename = f"stage_results_{stage_id}.csv" if stage_id else "stage_results.csv"
-            await self.csv_exporter.export_to_csv(data, filename)
-            
-        async def current_stage_callback(data, stage_id=None):
-            filename = f"current_stage_{stage_id}.csv" if stage_id else "current_stage.csv"
-            await self.csv_exporter.export_to_csv(data, filename)
-            
-        async def enhanced_current_callback(data, stage_id=None):
-            filename = f"enhanced_current_{stage_id}.csv" if stage_id else "enhanced_current.csv"
-            await self.csv_exporter.export_to_csv(data, filename)
+        """Set up automatic CSV and Excel export callbacks for all data types."""
+        # Create and register callbacks for each endpoint using enum properties
+        for endpoint in APIEndpoint:
+            callback = self._create_export_callback(endpoint)
+            self.data_processor.add_callback(endpoint, callback)
         
-        # Add callbacks for each endpoint
-        self.data_processor.add_callback(APIEndpoint.ENTRY_LIST, entry_list_callback)
-        self.data_processor.add_callback(APIEndpoint.START_LIST, start_list_callback)
-        self.data_processor.add_callback(APIEndpoint.ROUTE_SHEET, route_sheet_callback)
-        self.data_processor.add_callback(APIEndpoint.STAGE_RESULTS, stage_results_callback)
-        self.data_processor.add_callback(APIEndpoint.CURRENT_STAGE, current_stage_callback)
-        self.data_processor.add_callback(APIEndpoint.ENHANCED_CURRENT, enhanced_current_callback)
+        enabled_exports = []
+        if settings.csv_export_enabled:
+            enabled_exports.append("CSV")
+        if settings.excel_export_enabled:
+            enabled_exports.append("Excel")
+            
+        logger.info(f"Set up automatic export callbacks for all endpoints: {', '.join(enabled_exports) if enabled_exports else 'None'}")
         
-        logger.info("Set up automatic CSV export callbacks for all endpoints")
+    def _create_export_callback(self, endpoint: APIEndpoint):
+        """Create an export callback function for the given endpoint."""
+        async def export_callback(data, stage_id=None):
+            # Handle CSV export
+            if settings.csv_export_enabled:
+                csv_filename = endpoint.get_csv_filename_with_stage(stage_id)
+                await csv_exporter.export_to_csv(data, csv_filename)
+            
+            # Handle Excel export
+            if settings.excel_export_enabled:
+                excel_sheet = endpoint.get_excel_sheet_with_stage(stage_id)
+                await csv_exporter.export_to_excel_sheet(data, excel_sheet)
+        
+        return export_callback
         
     async def start(self):
         """Start the application."""
