@@ -1,4 +1,4 @@
-"""Data models for Rally Data Scraper."""
+"""Simple data models for Rally Data Scraper."""
 
 from pydantic import BaseModel, Field
 from typing import Optional, List, Dict, Any
@@ -6,142 +6,93 @@ from datetime import datetime
 from enum import Enum
 
 
+# Simple object maps for fast lookups
+RALLY_CLASS_NAMES = {
+    "1": "ORB",
+    "2": "Rallye2", 
+    "3": "Historic"
+}
+
+ENDPOINT_CSV_NAMES = {
+    "8": "entry_list",
+    "9": "start_list",
+    "10": "route_sheet",
+    "3": "stage_results",
+    "4": "current_stage",
+    "104": "enhanced_current"
+}
+
+ENDPOINT_EXCEL_NAMES = {
+    "8": "Entry_List",
+    "9": "Start_List",
+    "10": "Route_Sheet",
+    "3": "Stage_Results",
+    "4": "Current_Stage",
+    "104": "Enhanced_Current"
+}
+
+# Endpoints that need stage ID parameter ('s')
+STAGE_ENDPOINTS = {"3", "4", "104"}
+
+
 class APIEndpoint(str, Enum):
     """Available API endpoints based on 'a' parameter."""
-    ENTRY_LIST = "8"  # Nevezési lista - Entry list with detailed data
-    START_LIST = "9"  # Rajtlista - Start list
-    ROUTE_SHEET = "10"  # Útvonallap - Route sheet with stage IDs
-    STAGE_RESULTS = "3"  # Gyorsasági szakasz részletes eredmények - Detailed stage results
-    CURRENT_STAGE = "4"  # Gyorsaságin lévő autók - Cars currently on stage
-    ENHANCED_CURRENT = "104"  # Enhanced version of current stage with GPS data
+    ENTRY_LIST = "8"
+    START_LIST = "9"
+    ROUTE_SHEET = "10"
+    STAGE_RESULTS = "3"
+    CURRENT_STAGE = "4"
+    ENHANCED_CURRENT = "104"
     
-    @property
-    def csv_filename(self) -> str:
-        """Get CSV filename for this endpoint."""
-        filenames = {
-            "8": "entry_list.csv",
-            "9": "start_list.csv", 
-            "10": "route_sheet.csv",
-            "3": "stage_results.csv",
-            "4": "current_stage.csv",
-            "104": "enhanced_current.csv"
-        }
-        return filenames.get(self.value, f"endpoint_{self.value}.csv")
+    def needs_stage_id(self) -> bool:
+        """Check if endpoint needs stage ID parameter."""
+        return self.value in STAGE_ENDPOINTS
     
-    @property
-    def excel_sheet(self) -> str:
-        """Get Excel sheet name for this endpoint."""
-        sheet_names = {
-            "8": "Entry_List",
-            "9": "Start_List",
-            "10": "Route_Sheet", 
-            "3": "Stage_Results",
-            "4": "Current_Stage",
-            "104": "Enhanced_Current"
-        }
-        return sheet_names.get(self.value, f"Endpoint_{self.value}")
+    def get_csv_filename(self, rally_class: str, stage_id: Optional[str] = None) -> str:
+        """Get CSV filename with rally class and optional stage ID."""
+        class_name = RALLY_CLASS_NAMES.get(rally_class, f"{rally_class}")
+        base_name = ENDPOINT_CSV_NAMES.get(self.value, f"{self.value}")
+        
+        if stage_id and self.needs_stage_id():
+            return f"{class_name}_{base_name}_{stage_id}.csv"
+        return f"{class_name}_{base_name}.csv"
     
-    def get_csv_filename_with_stage(self, stage_id: Optional[str] = None) -> str:
-        """Get CSV filename with stage ID if applicable."""
-        if stage_id and self.value in ["3", "4", "104"]:
-            base_name = self.csv_filename.replace(".csv", "")
-            return f"{base_name}_{stage_id}.csv"
-        return self.csv_filename
-    
-    def get_excel_sheet_with_stage(self, stage_id: Optional[str] = None) -> str:
-        """Get Excel sheet name with stage ID if applicable."""
-        if stage_id and self.value in ["3", "4", "104"]:
-            return f"{self.excel_sheet}_{stage_id}"
-        return self.excel_sheet
+    def get_excel_sheet(self, rally_class: str, stage_id: Optional[str] = None) -> str:
+        """Get Excel sheet name with rally class and optional stage ID."""
+        class_name = RALLY_CLASS_NAMES.get(rally_class, f"{rally_class}")
+        base_name = ENDPOINT_EXCEL_NAMES.get(self.value, f"{self.value}")
+        
+        if stage_id and self.needs_stage_id():
+            return f"{class_name}_{base_name}_{stage_id}"
+        return f"{class_name}_{base_name}"
 
 
 class RallyClass(str, Enum):
-    """Rally class categories based on 'oszt' parameter."""
-    ORB_CLASS_1 = "1"  # 1. osztály (ORB+Int) - Class 1 for national and international events (ERC)
-    RALLYE2 = "2"      # Rallye2 class
-    HISTORIC = "3"     # Historic class
+    """Rally class categories."""
+    ORB = "1"
+    RALLYE2 = "2"
+    HISTORIC = "3"
     
     @property
     def description(self) -> str:
-        """Get human-readable description of the class."""
-        descriptions = {
-            "1": "1. osztály (ORB+International/ERC)",
-            "2": "Rallye2",
-            "3": "Historic"
-        }
-        return descriptions.get(self.value, f"Class {self.value}")
+        """Get description."""
+        return RALLY_CLASS_NAMES.get(self.value, f"{self.value}")
     
     @classmethod
     def get_all_classes(cls) -> List[str]:
-        """Get all available class values."""
+        """Get all class values."""
         return [c.value for c in cls]
 
 
-class RallyEntry(BaseModel):
-    """Model for rally entry data (a=8)."""
-    race_number: int = Field(alias="RSz")
-    string_race_number: str = Field(alias="sRSz")
-    driver: str = Field(alias="Vezető")
-    navigator: str = Field(alias="Navigátor")
-    nation1: str = Field(alias="Nemzet1")
-    nation2: str = Field(alias="Nemzet2")
-    car_make: str = Field(alias="AutoMarka")
-    car_model: str = Field(alias="Autó")
-    entrant: str = Field(alias="Nevezo")
-    class_category: str = Field(alias="Oszt.")
-
-
-class StageResult(BaseModel):
-    """Model for stage results (a=3, a=4, a=104)."""
-    race_number: int = Field(alias="RSz")
-    string_race_number: str = Field(alias="sRSz")
-    driver: str = Field(alias="Vezető")
-    navigator: str = Field(alias="Navigátor")
-    nation1: str = Field(alias="Nemzet1")
-    nation2: str = Field(alias="Nemzet2")
-    car_make: str = Field(alias="AutoMarka")
-    car_model: str = Field(alias="Autó")
-    entrant: str = Field(alias="Nevezo")
-    class_category: str = Field(alias="Oszt.")
-    start_time: Optional[str] = Field(default=None, alias="dtRajtIdo")
-    elapsed_time: Optional[str] = Field(default=None, alias="EddigiIdo")
-    
-    # GPS data (for a=104)
-    gps_lat: Optional[float] = Field(default=None, alias="koo_lat")
-    gps_lon: Optional[float] = Field(default=None, alias="koo_lon")
-    gps_speed: Optional[float] = Field(default=None, alias="koo_seb")
-    gps_timestamp: Optional[str] = Field(default=None, alias="koo_timestamp")
-    gps_heading: Optional[float] = Field(default=None, alias="koo_heading")
-    
-    # Estimated times
-    estimated_time: Optional[str] = Field(default=None, alias="BecsTeljIdo")
-    last_estimated_time: Optional[str] = Field(default=None, alias="LastBTIdo")
-    time_estimate_quality: Optional[str] = Field(default=None, alias="BTIdoOk")
-    
-    # Stage progress
-    distance_from_start: Optional[float] = Field(default=None, alias="relNyomvTavKezd")
-    alert: Optional[str] = Field(default=None, alias="Alert")
-    slow_stage_seconds: Optional[int] = Field(default=None, alias="LassuGyorsonSec")
-    total_stage_seconds: Optional[int] = Field(default=None, alias="AllGyorsonSec")
-    geometry_name: Optional[str] = Field(default=None, alias="GeomNev")
-    role: Optional[str] = Field(default=None, alias="Szerep")
-
-
-class RouteSheet(BaseModel):
-    """Model for route sheet data (a=10)."""
-    stage_id: str = Field(alias="s")
-    stage_name: str
-    stage_type: str
-    distance: Optional[float] = None
-
-
 class APIResponse(BaseModel):
-    """Generic API response wrapper."""
+    """API response wrapper with 2D array data."""
     endpoint: APIEndpoint
     stage_id: Optional[str] = None
-    data: List[Dict[str, Any]]
+    rally_class: str
+    data: List[List[str]]  # 2D array: [headers, row1, row2, ...]
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     success: bool = True
     error_message: Optional[str] = None
 
 
+# Note: Pydantic data models removed - using simple 2D arrays for direct CSV/Excel export

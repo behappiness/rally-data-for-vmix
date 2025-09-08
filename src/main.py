@@ -13,6 +13,7 @@ from .api_client import HauserResultsAPIClient
 from .data_store import RallyDataProcessor
 from .http_handler import RallyHTTPHandler
 from . import csv_exporter
+from .excel_exporter import export_to_excel_sheet
 from .config import settings
 from .models import APIEndpoint
 
@@ -104,16 +105,16 @@ class RallyDataApplication:
         
     def _create_export_callback(self, endpoint: APIEndpoint):
         """Create an export callback function for the given endpoint."""
-        async def export_callback(data, stage_id=None):
+        async def export_callback(data, stage_id=None, rally_class=None):
             # Handle CSV export
             if settings.csv_export_enabled:
-                csv_filename = endpoint.get_csv_filename_with_stage(stage_id)
+                csv_filename = endpoint.get_csv_filename(rally_class, stage_id)
                 await csv_exporter.export_to_csv(data, csv_filename)
             
             # Handle Excel export
             if settings.excel_export_enabled:
-                excel_sheet = endpoint.get_excel_sheet_with_stage(stage_id)
-                await csv_exporter.export_to_excel_sheet(data, excel_sheet)
+                excel_sheet = endpoint.get_excel_sheet(rally_class, stage_id)
+                await export_to_excel_sheet(data, excel_sheet)
         
         return export_callback
         

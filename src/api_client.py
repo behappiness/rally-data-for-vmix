@@ -3,13 +3,13 @@
 import asyncio
 import aiohttp
 import logging
-from typing import Optional, Dict, Any, List
+from typing import Optional, List, Dict
 from urllib.parse import urlencode
 import csv
 from io import StringIO
 
 from .config import settings
-from .models import APIEndpoint, APIResponse, RallyEntry, StageResult, RouteSheet, RallyClass
+from .models import APIEndpoint, APIResponse, RallyClass
 
 
 logger = logging.getLogger(__name__)
@@ -38,7 +38,12 @@ class HauserResultsAPIClient:
     async def start_session(self):
         """Start the aiohttp session."""
         if self.session is None or self.session.closed:
-            connector = aiohttp.TCPConnector(limit=10, ttl_dns_cache=300)
+            connector = aiohttp.TCPConnector(
+                limit=100,  # Increase total connection pool size
+                limit_per_host=30,  # Allow more concurrent connections per host
+                ttl_dns_cache=300,
+                use_dns_cache=True
+            )
             timeout = aiohttp.ClientTimeout(total=self.timeout)
             headers = {
                 'User-Agent': self.user_agent,
@@ -65,7 +70,6 @@ class HauserResultsAPIClient:
             'oszt': rally_class,  # Class parameter (default to "1" if not specified)
             'error': self.error_code,
             'a': endpoint.value,
-            'ert': 'ALL',
             'noform': '1',
             'csv': '1'  # Request CSV format
         }
@@ -101,34 +105,24 @@ class HauserResultsAPIClient:
             logger.error(f"Unexpected error during request: {e}")
             raise
             
-    def _parse_csv_response(self, csv_content: str) -> List[Dict[str, Any]]:
-        """Parse CSV response into list of dictionaries."""
+    def _parse_csv_to_2d_array(self, csv_content: str) -> List[List[str]]:
+        """Parse CSV response into a 2D array (list of lists)."""
         try:
-            # Handle potential BOM and encoding issues
             if csv_content.startswith('\ufeff'):
                 csv_content = csv_content[1:]
                 
-            reader = csv.DictReader(StringIO(csv_content))
-            data = []
+            reader = csv.reader(StringIO(csv_content))
+            raw_data = list(reader)
             
-            for row in reader:
-                # Clean up empty values and strip whitespace
-                cleaned_row = {}
-                for key, value in row.items():
-                    if key and key.strip():  # Skip empty column names
-                        cleaned_value = value.strip() if value else None
-                        if cleaned_value:  # Only add non-empty values
-                            cleaned_row[key.strip()] = cleaned_value
-                            
-                if cleaned_row:  # Only add non-empty rows
-                    data.append(cleaned_row)
+            data = [row for row in raw_data if any(cell.strip() for cell in row)]
+            
+            logger.debug(f"Removed {len(raw_data) - len(data)} empty rows")
                     
-            logger.debug(f"Parsed {len(data)} rows from CSV")
+            logger.debug(f"Parsed {len(data)} rows from CSV (including headers)")
             return data
             
         except Exception as e:
             logger.error(f"Failed to parse CSV response: {e}")
-            logger.debug(f"CSV content: {csv_content[:500]}...")
             raise
             
     async def get_entry_list(self, rally_class: str = "1") -> APIResponse:
@@ -136,10 +130,11 @@ class HauserResultsAPIClient:
         try:
             url = self._build_url(APIEndpoint.ENTRY_LIST, rally_class=rally_class)
             content = await self._make_request(url)
-            data = self._parse_csv_response(content)
+            data = self._parse_csv_to_2d_array(content)
             
             return APIResponse(
                 endpoint=APIEndpoint.ENTRY_LIST,
+                rally_class=rally_class,
                 data=data,
                 success=True
             )
@@ -148,6 +143,7 @@ class HauserResultsAPIClient:
             logger.error(f"Failed to get entry list: {e}")
             return APIResponse(
                 endpoint=APIEndpoint.ENTRY_LIST,
+                rally_class=rally_class,
                 data=[],
                 success=False,
                 error_message=str(e)
@@ -158,10 +154,11 @@ class HauserResultsAPIClient:
         try:
             url = self._build_url(APIEndpoint.START_LIST, rally_class=rally_class)
             content = await self._make_request(url)
-            data = self._parse_csv_response(content)
+            data = self._parse_csv_to_2d_array(content)
             
             return APIResponse(
                 endpoint=APIEndpoint.START_LIST,
+                rally_class=rally_class,
                 data=data,
                 success=True
             )
@@ -170,6 +167,7 @@ class HauserResultsAPIClient:
             logger.error(f"Failed to get start list: {e}")
             return APIResponse(
                 endpoint=APIEndpoint.START_LIST,
+                rally_class=rally_class,
                 data=[],
                 success=False,
                 error_message=str(e)
@@ -180,10 +178,11 @@ class HauserResultsAPIClient:
         try:
             url = self._build_url(APIEndpoint.ROUTE_SHEET, rally_class=rally_class)
             content = await self._make_request(url)
-            data = self._parse_csv_response(content)
+            data = self._parse_csv_to_2d_array(content)
             
             return APIResponse(
                 endpoint=APIEndpoint.ROUTE_SHEET,
+                rally_class=rally_class,
                 data=data,
                 success=True
             )
@@ -192,6 +191,7 @@ class HauserResultsAPIClient:
             logger.error(f"Failed to get route sheet: {e}")
             return APIResponse(
                 endpoint=APIEndpoint.ROUTE_SHEET,
+                rally_class=rally_class,
                 data=[],
                 success=False,
                 error_message=str(e)
@@ -202,11 +202,12 @@ class HauserResultsAPIClient:
         try:
             url = self._build_url(APIEndpoint.STAGE_RESULTS, stage_id=stage_id, rally_class=rally_class)
             content = await self._make_request(url)
-            data = self._parse_csv_response(content)
+            data = self._parse_csv_to_2d_array(content)
             
             return APIResponse(
                 endpoint=APIEndpoint.STAGE_RESULTS,
                 stage_id=stage_id,
+                rally_class=rally_class,
                 data=data,
                 success=True
             )
@@ -216,6 +217,7 @@ class HauserResultsAPIClient:
             return APIResponse(
                 endpoint=APIEndpoint.STAGE_RESULTS,
                 stage_id=stage_id,
+                rally_class=rally_class,
                 data=[],
                 success=False,
                 error_message=str(e)
@@ -226,11 +228,12 @@ class HauserResultsAPIClient:
         try:
             url = self._build_url(APIEndpoint.CURRENT_STAGE, stage_id=stage_id, rally_class=rally_class)
             content = await self._make_request(url)
-            data = self._parse_csv_response(content)
+            data = self._parse_csv_to_2d_array(content)
             
             return APIResponse(
                 endpoint=APIEndpoint.CURRENT_STAGE,
                 stage_id=stage_id,
+                rally_class=rally_class,
                 data=data,
                 success=True
             )
@@ -240,6 +243,7 @@ class HauserResultsAPIClient:
             return APIResponse(
                 endpoint=APIEndpoint.CURRENT_STAGE,
                 stage_id=stage_id,
+                rally_class=rally_class,
                 data=[],
                 success=False,
                 error_message=str(e)
@@ -250,11 +254,12 @@ class HauserResultsAPIClient:
         try:
             url = self._build_url(APIEndpoint.ENHANCED_CURRENT, stage_id=stage_id, rally_class=rally_class)
             content = await self._make_request(url)
-            data = self._parse_csv_response(content)
+            data = self._parse_csv_to_2d_array(content)
             
             return APIResponse(
                 endpoint=APIEndpoint.ENHANCED_CURRENT,
                 stage_id=stage_id,
+                rally_class=rally_class,
                 data=data,
                 success=True
             )
@@ -264,6 +269,7 @@ class HauserResultsAPIClient:
             return APIResponse(
                 endpoint=APIEndpoint.ENHANCED_CURRENT,
                 stage_id=stage_id,
+                rally_class=rally_class,
                 data=[],
                 success=False,
                 error_message=str(e)
