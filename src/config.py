@@ -38,6 +38,11 @@ class Settings:
         self.excel_export_enabled = os.getenv("EXCEL_EXPORT_ENABLED", "true").lower() == "true"
         self.excel_filename = os.getenv("EXCEL_FILENAME", "rally_data.xlsx")
         
+        # Racing Number and Stage Settings
+        self.racing_number_tab = os.getenv("RACING_NUMBER_TAB", "Settings")
+        self.racing_number_range = os.getenv("RACING_NUMBER_RANGE", "A1:D3")
+        self.racing_speed_filename = os.getenv("RACING_SPEED_FILENAME", "racing_speed")
+    
         # HTTP Server Configuration
         self.http_server_host = os.getenv("HTTP_SERVER_HOST", "localhost")
         self.http_server_port = int(os.getenv("HTTP_SERVER_PORT", "8000"))

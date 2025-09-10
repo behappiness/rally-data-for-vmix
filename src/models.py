@@ -9,26 +9,26 @@ from enum import Enum
 # Simple object maps for fast lookups
 RALLY_CLASS_NAMES = {
     "1": "ORB",
-    "2": "Rallye2", 
-    "3": "Historic"
+    "2": "R2", 
+    "3": "HST"
 }
 
 ENDPOINT_CSV_NAMES = {
-    "8": "entry_list",
-    "9": "start_list",
-    "10": "route_sheet",
-    "3": "stage_results",
-    "4": "current_stage",
-    "104": "enhanced_current"
+    "8": "entry",
+    "9": "start",
+    "10": "route",
+    "3": "stage",
+    "4": "current",
+    "104": "enhanced"
 }
 
 ENDPOINT_EXCEL_NAMES = {
-    "8": "Entry_List",
-    "9": "Start_List",
-    "10": "Route_Sheet",
-    "3": "Stage_Results",
-    "4": "Current_Stage",
-    "104": "Enhanced_Current"
+    "8": "ENTRY",
+    "9": "START",
+    "10": "ROUTE",
+    "3": "STAGE",
+    "4": "CURRENT",
+    "104": "ENHANCED"
 }
 
 # Endpoints that need stage ID parameter ('s')
@@ -47,6 +47,11 @@ class APIEndpoint(str, Enum):
     def needs_stage_id(self) -> bool:
         """Check if endpoint needs stage ID parameter."""
         return self.value in STAGE_ENDPOINTS
+    
+    @classmethod
+    def get_value(cls, endpoint_name: str) -> str:
+        """Get endpoint value by name."""
+        return getattr(cls, endpoint_name.upper()).value
     
     def get_csv_filename(self, rally_class: str, stage_id: Optional[str] = None) -> str:
         """Get CSV filename with rally class and optional stage ID."""

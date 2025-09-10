@@ -10,7 +10,8 @@ from pydantic import BaseModel
 
 from .api_client import HauserResultsAPIClient
 from .data_store import RallyDataProcessor
-from .models import APIEndpoint, RallyClass, STAGE_ENDPOINTS
+from .models import APIEndpoint, RallyClass
+from .multithreaded_datastore import racing_number_store
 
 logger = logging.getLogger(__name__)
 
@@ -95,7 +96,7 @@ class RallyHTTPHandler:
             return {
                 "name": "Rally Data API",
                 "version": "1.0.0",
-                "endpoints": ["/trigger"],
+                "endpoints": ["/trigger", "/update-racing-number"],
                 "rally_classes": RallyClass.get_all_classes(),
                 "available_endpoints": [e.value for e in APIEndpoint],
                 "example": {
@@ -172,6 +173,52 @@ class RallyHTTPHandler:
                 "timestamp": datetime.utcnow().isoformat(),
                 "success": success_count == len(async_tasks)
             }
+        
+        @self.app.post("/update-racing-number")
+        async def update_racing_number():
+            """Update racing numbers by reading from Excel file and trigger data refresh."""
+            try:
+                success = racing_number_store.update_from_excel()
+                if success:
+                    racing_numbers = racing_number_store.get_all_racing_numbers()
+                    stages = racing_number_store.get_all_stages()
+                    
+                    # Create trigger request for all rally classes with enhanced current stage
+                    tasks = []
+                    for rally_class in RallyClass:
+                        stage_id = stages.get(rally_class.value)
+                        if stage_id:
+                            task_item = TaskItem(
+                                rally_class=rally_class.value,
+                                endpoint=APIEndpoint.get_value("enhanced_current"),
+                                stage_ids=[stage_id]
+                            )
+                        else:
+                            task_item = TaskItem(
+                                rally_class=rally_class.value,
+                                endpoint=APIEndpoint.get_value("enhanced_current")
+                            )
+                        tasks.append(task_item)
+                    
+                    # Create trigger request and call trigger endpoint internally
+                    trigger_request = TriggerRequest(tasks=tasks)
+                    trigger_result = await trigger_data_update(trigger_request)
+                    
+                    return {
+                        "message": "Racing numbers and stages updated and data refreshed",
+                        "racing_numbers": racing_numbers,
+                        "stages": stages,
+                        "success": True,
+                        "trigger_result": trigger_result
+                    }
+                else:
+                    return {
+                        "message": "Failed to update racing numbers from Excel",
+                        "success": False
+                    }
+            except Exception as e:
+                logger.error(f"Error updating racing numbers: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
 
     def get_app(self) -> FastAPI:
         return self.app

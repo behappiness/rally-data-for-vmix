@@ -5,7 +5,6 @@ import logging
 import signal
 import sys
 from pathlib import Path
-from typing import Dict, List, Any
 
 import uvicorn
 
@@ -14,6 +13,7 @@ from .data_store import RallyDataProcessor
 from .http_handler import RallyHTTPHandler
 from . import csv_exporter
 from .excel_exporter import export_to_excel_sheet
+from .csv_exporter import export_racing_speed
 from .config import settings
 from .models import APIEndpoint
 
@@ -95,6 +95,9 @@ class RallyDataApplication:
             callback = self._create_export_callback(endpoint)
             self.data_processor.add_callback(endpoint, callback)
         
+        # Add racing speed callback specifically for current_stage endpoint
+        self.data_processor.add_callback(APIEndpoint.CURRENT_STAGE, export_racing_speed)
+        
         enabled_exports = []
         if settings.csv_export_enabled:
             enabled_exports.append("CSV")
@@ -102,6 +105,7 @@ class RallyDataApplication:
             enabled_exports.append("Excel")
             
         logger.info(f"Set up automatic export callbacks for all endpoints: {', '.join(enabled_exports) if enabled_exports else 'None'}")
+        logger.info("Added racing speed callback for racing number filtering")
         
     def _create_export_callback(self, endpoint: APIEndpoint):
         """Create an export callback function for the given endpoint."""
