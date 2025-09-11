@@ -48,7 +48,7 @@ class Settings:
         self.racing_speed_filename = os.getenv("RACING_SPEED_FILENAME", "racing_speed")
     
         # HTTP Server Configuration
-        self.http_server_host = os.getenv("HTTP_SERVER_HOST", "localhost")
+        self.http_server_host = os.getenv("HTTP_SERVER_HOST", "0.0.0.0")
         self.http_server_port = int(os.getenv("HTTP_SERVER_PORT", "8000"))
         
         # Logging
