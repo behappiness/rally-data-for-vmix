@@ -38,6 +38,10 @@ class Settings:
         self.excel_export_enabled = os.getenv("EXCEL_EXPORT_ENABLED", "true").lower() == "true"
         self.excel_filename = os.getenv("EXCEL_FILENAME", "rally_data.xlsx")
         
+        # Excel Cleaning Configuration
+        self.excel_clean_horizontal_cells = int(os.getenv("EXCEL_CLEAN_HORIZONTAL_CELLS", "0"))
+        self.excel_clean_vertical_cells = int(os.getenv("EXCEL_CLEAN_VERTICAL_CELLS", "0"))
+        
         # Racing Number and Stage Settings
         self.racing_number_tab = os.getenv("RACING_NUMBER_TAB", "Settings")
         self.racing_number_range = os.getenv("RACING_NUMBER_RANGE", "A1:D3")

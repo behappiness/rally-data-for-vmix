@@ -10,6 +10,55 @@ from .config import settings
 logger = logging.getLogger(__name__)
 
 
+def _clear_cells_after_range(sheet, num_rows: int, num_cols: int, end_col: str):
+    """Clear cells after the data range based on horizontal and vertical cleaning settings."""
+    try:
+        # Calculate the starting position for cleaning
+        start_row = num_rows + 1
+        start_col = num_cols + 1
+        
+        # Calculate the ending position for cleaning
+        end_row = num_rows + settings.excel_clean_vertical_cells
+        end_col_clean = _get_column_letter(num_cols + settings.excel_clean_horizontal_cells)
+        
+        # Only clear if we have cells to clear
+        if end_row > num_rows or end_col_clean != end_col:
+            # Clear horizontal cells (right of data)
+            if settings.excel_clean_horizontal_cells > 0:
+                horizontal_range = f"{_get_column_letter(start_col)}1:{end_col_clean}{num_rows}"
+                sheet.range(horizontal_range).value = 0
+                logger.debug(f"Cleared horizontal cells: {horizontal_range}")
+            
+            # Clear vertical cells (below data)
+            if settings.excel_clean_vertical_cells > 0:
+                vertical_range = f"A{start_row}:{end_col}{end_row}"
+                sheet.range(vertical_range).value = 0
+                logger.debug(f"Cleared vertical cells: {vertical_range}")
+            
+            # Clear the corner area if both horizontal and vertical cleaning are enabled
+            if settings.excel_clean_horizontal_cells > 0 and settings.excel_clean_vertical_cells > 0:
+                corner_range = f"{_get_column_letter(start_col)}{start_row}:{end_col_clean}{end_row}"
+                sheet.range(corner_range).value = 0
+                logger.debug(f"Cleared corner cells: {corner_range}")
+                
+    except Exception as e:
+        logger.error(f"Error clearing cells after range: {e}")
+
+
+def _get_column_letter(col_num: int) -> str:
+    """Convert column number to Excel column letter (1-based)."""
+    if col_num <= 26:
+        return chr(64 + col_num)
+    else:
+        col_index = col_num - 1
+        if col_index < 702:
+            first_char = chr(65 + col_index // 26 - 1)
+            second_char = chr(65 + col_index % 26)
+            return first_char + second_char
+        else:
+            return f"Z{col_num}"
+
+
 async def export_to_excel_sheet(
     data: List[List[str]],
     sheet_name: str
@@ -64,6 +113,10 @@ async def _write_excel_data(sheet_name: str, all_data: List[List]):
                 
                 range_str = f'A1:{end_col}{num_rows}'
                 sheet.range(range_str).value = all_data
+                
+                # Clear cells after the data range if cleaning is enabled
+                if settings.excel_clean_horizontal_cells > 0 or settings.excel_clean_vertical_cells > 0:
+                    _clear_cells_after_range(sheet, num_rows, num_cols, end_col)
                 
                 logger.debug(f"Set {num_rows} rows in sheet '{sheet_name}'")
         
