@@ -275,6 +275,32 @@ class HauserResultsAPIClient:
                 error_message=str(e)
             )
             
+    async def get_roll_call(self, stage_id: str, rally_class: str = "1") -> APIResponse:
+        """Get roll call data (a=13) - attendance/roll call information."""
+        try:
+            url = self._build_url(APIEndpoint.ROLL, stage_id=stage_id, rally_class=rally_class)
+            content = await self._make_request(url)
+            data = self._parse_csv_to_2d_array(content)
+            
+            return APIResponse(
+                endpoint=APIEndpoint.ROLL,
+                stage_id=stage_id,
+                rally_class=rally_class,
+                data=data,
+                success=True
+            )
+            
+        except Exception as e:
+            logger.error(f"Failed to get roll call data for stage {stage_id}: {e}")
+            return APIResponse(
+                endpoint=APIEndpoint.ROLL,
+                stage_id=stage_id,
+                rally_class=rally_class,
+                data=[],
+                success=False,
+                error_message=str(e)
+            )
+            
     async def get_all_stage_data(self, stage_id: str) -> Dict[str, APIResponse]:
         """Get all data for a specific stage concurrently."""
         tasks = {

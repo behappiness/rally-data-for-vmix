@@ -26,19 +26,19 @@ def _clear_cells_after_range(sheet, num_rows: int, num_cols: int, end_col: str):
             # Clear horizontal cells (right of data)
             if settings.excel_clean_horizontal_cells > 0:
                 horizontal_range = f"{_get_column_letter(start_col)}1:{end_col_clean}{num_rows}"
-                sheet.range(horizontal_range).value = 0
+                sheet.range(horizontal_range).value = ""
                 logger.debug(f"Cleared horizontal cells: {horizontal_range}")
             
             # Clear vertical cells (below data)
             if settings.excel_clean_vertical_cells > 0:
                 vertical_range = f"A{start_row}:{end_col}{end_row}"
-                sheet.range(vertical_range).value = 0
+                sheet.range(vertical_range).value = ""
                 logger.debug(f"Cleared vertical cells: {vertical_range}")
             
             # Clear the corner area if both horizontal and vertical cleaning are enabled
             if settings.excel_clean_horizontal_cells > 0 and settings.excel_clean_vertical_cells > 0:
                 corner_range = f"{_get_column_letter(start_col)}{start_row}:{end_col_clean}{end_row}"
-                sheet.range(corner_range).value = 0
+                sheet.range(corner_range).value = ""
                 logger.debug(f"Cleared corner cells: {corner_range}")
                 
     except Exception as e:

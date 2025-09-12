@@ -17,6 +17,7 @@ ENDPOINT_CSV_NAMES = {
     "8": "entry",
     "9": "start",
     "10": "route",
+    "13": "roll",
     "3": "stage",
     "4": "current",
     "104": "enhanced"
@@ -26,13 +27,14 @@ ENDPOINT_EXCEL_NAMES = {
     "8": "ENTRY",
     "9": "START",
     "10": "ROUTE",
+    "13": "ROLL",
     "3": "STAGE",
     "4": "CURRENT",
     "104": "ENHANCED"
 }
 
 # Endpoints that need stage ID parameter ('s')
-STAGE_ENDPOINTS = {"3", "4", "104"}
+STAGE_ENDPOINTS = {"3", "4", "104", "13"}
 
 
 class APIEndpoint(str, Enum):
@@ -40,6 +42,7 @@ class APIEndpoint(str, Enum):
     ENTRY_LIST = "8"
     START_LIST = "9"
     ROUTE_SHEET = "10"
+    ROLL = "13"
     STAGE_RESULTS = "3"
     CURRENT_STAGE = "4"
     ENHANCED_CURRENT = "104"

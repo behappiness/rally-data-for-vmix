@@ -45,7 +45,8 @@ class RallyHTTPHandler:
         self._stage_handlers = {
             APIEndpoint.STAGE_RESULTS: self.api_client.get_stage_results,
             APIEndpoint.CURRENT_STAGE: self.api_client.get_current_stage_cars,
-            APIEndpoint.ENHANCED_CURRENT: self.api_client.get_enhanced_current_stage
+            APIEndpoint.ENHANCED_CURRENT: self.api_client.get_enhanced_current_stage,
+            APIEndpoint.ROLL: self.api_client.get_roll_call
         }
 
         self.app = FastAPI(title="Rally Data API", version="1.0.0")
