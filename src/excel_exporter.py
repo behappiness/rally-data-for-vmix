@@ -125,3 +125,82 @@ async def _write_excel_data(sheet_name: str, all_data: List[List]):
     except Exception as e:
         logger.error(f"Error writing to Excel sheet: {e}")
         raise
+
+
+@xw.func(async_mode='threading')
+async def _add_to_excel_cell(sheet_name: str, cell: str, value: float):
+    """Add a number to a specific Excel cell."""
+    try:
+        try:
+            wb = xw.Book(settings.excel_filename)
+            logger.debug(f"Connected to existing workbook: {settings.excel_filename}")
+        except:
+            logger.warning(f"Excel file {settings.excel_filename} not found or not open")
+            raise ValueError("Excel file not found or not open")
+        
+        try:
+            sheet = wb.sheets[sheet_name]
+            logger.debug(f"Found existing sheet: {sheet_name}")
+        except:
+            sheet = wb.sheets.add(name=sheet_name)
+            logger.debug(f"Created new sheet: {sheet_name}")
+        
+        # Get current cell value
+        current_value = sheet.range(cell).value
+        if current_value is None:
+            current_value = 0
+        elif not isinstance(current_value, (int, float)):
+            try:
+                current_value = float(current_value)
+            except (ValueError, TypeError):
+                current_value = 0
+        
+        # Add the new value
+        new_value = current_value + value
+        sheet.range(cell).value = new_value
+        
+        logger.info(f"Added {value} to cell {cell} in sheet '{sheet_name}'. New value: {new_value}")
+        return new_value
+        
+    except Exception as e:
+        logger.error(f"Error adding to Excel cell: {e}")
+        raise
+
+
+@xw.func(async_mode='threading')
+async def _save_excel_file():
+    """Save the Excel file."""
+    try:
+        try:
+            wb = xw.Book(settings.excel_filename)
+            logger.debug(f"Connected to existing workbook: {settings.excel_filename}")
+        except:
+            logger.warning(f"Excel file {settings.excel_filename} not found or not open")
+            raise ValueError("Excel file not found or not open")
+        
+        wb.save()
+        logger.info(f"Saved Excel file: {settings.excel_filename}")
+        
+    except Exception as e:
+        logger.error(f"Error saving Excel file: {e}")
+        raise
+
+
+async def add_to_excel_cell(sheet_name: str, cell: str, value: float) -> float:
+    """Add a number to a specific Excel cell and return the new value."""
+    try:
+        new_value = await _add_to_excel_cell(sheet_name, cell, value)
+        return new_value
+    except Exception as e:
+        logger.error(f"Failed to add to Excel cell '{cell}' in sheet '{sheet_name}': {e}")
+        raise
+
+
+async def save_excel_file() -> str:
+    """Save the Excel file and return success message."""
+    try:
+        await _save_excel_file()
+        return f"Excel file '{settings.excel_filename}' saved successfully"
+    except Exception as e:
+        logger.error(f"Failed to save Excel file: {e}")
+        raise

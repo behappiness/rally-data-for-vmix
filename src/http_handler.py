@@ -6,12 +6,13 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from .api_client import HauserResultsAPIClient
 from .data_store import RallyDataProcessor
 from .models import APIEndpoint, RallyClass
 from .multithreaded_datastore import racing_number_store
+from .excel_exporter import add_to_excel_cell, save_excel_file
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +27,13 @@ class TaskItem(BaseModel):
 class TriggerRequest(BaseModel):
     """Request to trigger API calls."""
     tasks: List[TaskItem]
+
+
+class AddToCellRequest(BaseModel):
+    """Request to add a number to a specific Excel cell."""
+    sheet: str = Field(..., description="The Excel sheet (tab) name")
+    cell: str = Field(..., description="The cell reference (e.g., 'A1', 'B5')")
+    value: float = Field(..., description="The number to add to the cell")
 
 
 class RallyHTTPHandler:
@@ -97,7 +105,7 @@ class RallyHTTPHandler:
             return {
                 "name": "Rally Data API",
                 "version": "1.0.0",
-                "endpoints": ["/trigger", "/update-racing-number"],
+                "endpoints": ["/trigger", "/update-racing-number", "/add-to-cell", "/save"],
                 "rally_classes": RallyClass.get_all_classes(),
                 "available_endpoints": [e.value for e in APIEndpoint],
                 "example": {
@@ -106,6 +114,13 @@ class RallyHTTPHandler:
                         {"rally_class": "2", "endpoint": "9"},
                         {"rally_class": "1", "endpoint": "3", "stage_ids": ["1", "2"]}
                     ]
+                },
+                "excel_examples": {
+                    "add_to_cell": {
+                        "sheet": "ORB_ENHANCED_1",
+                        "cell": "A1",
+                        "value": 5.5
+                    }
                 }
             }
 
@@ -219,6 +234,38 @@ class RallyHTTPHandler:
                     }
             except Exception as e:
                 logger.error(f"Error updating racing numbers: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+        
+        @self.app.post("/add-to-cell")
+        async def add_to_cell(request: AddToCellRequest):
+            """Add a number to a specific Excel cell."""
+            try:
+                new_value = await add_to_excel_cell(request.sheet, request.cell, request.value)
+                return {
+                    "message": f"Added {request.value} to cell {request.cell} in sheet '{request.sheet}'",
+                    "sheet": request.sheet,
+                    "cell": request.cell,
+                    "value_added": request.value,
+                    "new_value": new_value,
+                    "success": True,
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            except Exception as e:
+                logger.error(f"Error adding to Excel cell: {e}")
+                raise HTTPException(status_code=500, detail=str(e))
+        
+        @self.app.post("/save")
+        async def save_excel():
+            """Save the Excel file."""
+            try:
+                message = await save_excel_file()
+                return {
+                    "message": message,
+                    "success": True,
+                    "timestamp": datetime.utcnow().isoformat()
+                }
+            except Exception as e:
+                logger.error(f"Error saving Excel file: {e}")
                 raise HTTPException(status_code=500, detail=str(e))
 
     def get_app(self) -> FastAPI:
